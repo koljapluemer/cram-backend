@@ -28,7 +28,7 @@ class Situation(models.Model):
 class Communication(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     situations = models.ManyToManyField(Situation, related_name="communications_of_situation", blank=True)
-    descriptions = models.ManyToManyField(LanguageString, related_name="prompts", blank=True)
+    descriptions = models.ManyToManyField(LanguageString, related_name="communications", blank=True)
     shouldBeExpressed = models.BooleanField()
     shouldBeUnderstood = models.BooleanField()
 
@@ -49,7 +49,7 @@ class Utterance(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     communication = models.ForeignKey(Communication, on_delete=models.CASCADE, related_name="utterances_of_communication")
     transliteration = models.CharField(max_length=255, blank=True)
-    language = models.ForeignKey(Language, on_delete=models.CASCADE, related_name="language_strings")
+    language = models.ForeignKey(Language, on_delete=models.CASCADE, related_name="utterances")
     content = models.TextField()
 
     def __str__(self) -> str:
