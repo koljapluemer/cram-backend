@@ -161,6 +161,7 @@ The payload aggregates all content relevant to the situation for the provided la
 Rules applied:
 
 - `situation.descriptions`, `prompt.descriptions`, `communication.descriptions`, and `context.descriptions` are filtered to the `native_lang`.
+- `situation.language` in the response echoes the `native_lang` query parameter to indicate which set of descriptions was included.
 - `communications` are included only if they reference at least one `Utterance` in `target_lang`.
 - Each `communication.utterances` array contains only the `target_lang` utterances.
 - `context_type_details` is populated when a `ContextType` exists with `name` matching the context’s `context_type`. Its descriptions are likewise filtered to `native_lang`. When no match exists, the field is `null`.
@@ -168,6 +169,7 @@ Rules applied:
 #### Error responses
 
 - `404 Not Found` if the situation id does not exist.
+- `404 Not Found` if the situation has no communications with utterances in the requested `target_lang`.
 - `400 Bad Request` if `target_lang` or `native_lang` is missing.
 
 ## Setup Notes

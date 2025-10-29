@@ -27,15 +27,21 @@ class SituationsByLanguageView(generics.ListAPIView):
     def get_queryset(self):
         language_code = self.kwargs["language_code"]
         return (
-            Situation.objects.filter(languages__code=language_code)
+            Situation.objects.filter(descriptions__language__code=language_code)
             .prefetch_related(
                 Prefetch(
                     "descriptions",
                     queryset=LanguageString.objects.filter(language__code=language_code),
                 )
             )
+            .distinct()
             .order_by("id")
         )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["language_code"] = self.kwargs["language_code"]
+        return context
 
 
 class SituationDetailView(APIView):
@@ -51,10 +57,37 @@ class SituationDetailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        communications_prefetch = Prefetch(
+            "communications_of_situation",
+            queryset=Communication.objects.filter(
+                utterances_of_communication__language__code=target_lang
+            )
+            .distinct()
+            .prefetch_related(
+                Prefetch(
+                    "descriptions",
+                    queryset=LanguageString.objects.filter(language__code=native_lang),
+                ),
+                Prefetch(
+                    "utterances_of_communication",
+                    queryset=Utterance.objects.filter(language__code=target_lang).prefetch_related(
+                        Prefetch(
+                            "contexts",
+                            queryset=Context.objects.prefetch_related(
+                                Prefetch(
+                                    "descriptions",
+                                    queryset=LanguageString.objects.filter(language__code=native_lang),
+                                )
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        )
+
         try:
             situation = (
-                Situation.objects.select_related("languages")
-                .prefetch_related(
+                Situation.objects.prefetch_related(
                     Prefetch(
                         "descriptions",
                         queryset=LanguageString.objects.filter(language__code=native_lang),
@@ -68,35 +101,20 @@ class SituationDetailView(APIView):
                             )
                         ),
                     ),
-                    Prefetch(
-                        "communications_of_situation",
-                        queryset=Communication.objects.prefetch_related(
-                            Prefetch(
-                                "descriptions",
-                                queryset=LanguageString.objects.filter(language__code=native_lang),
-                            ),
-                            Prefetch(
-                                "utterances_of_communication",
-                                queryset=Utterance.objects.filter(language__code=target_lang).prefetch_related(
-                                    Prefetch(
-                                        "contexts",
-                                        queryset=Context.objects.prefetch_related(
-                                            Prefetch(
-                                                "descriptions",
-                                                queryset=LanguageString.objects.filter(language__code=native_lang),
-                                            )
-                                        ),
-                                    )
-                                ),
-                            ),
-                        ),
-                    ),
-                )
-                .get(pk=situation_id)
+                    communications_prefetch,
+                ).get(pk=situation_id)
             )
         except Situation.DoesNotExist:
             return Response(
                 {"detail": f"Situation with id {situation_id} not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not situation.has_utterances_for_language(target_lang):
+            return Response(
+                {
+                    "detail": f"Situation {situation_id} has no communications with utterances in language '{target_lang}'."
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -131,7 +149,7 @@ class SituationDetailView(APIView):
             "id": situation.id,
             "last_updated": situation.last_updated,
             "image_url": situation.image_url,
-            "language": situation.languages.code if situation.languages_id else None,
+            "language": native_lang,
             "descriptions": descriptions,
         }
 

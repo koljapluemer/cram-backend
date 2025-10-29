@@ -19,8 +19,11 @@ class LanguageStringSerializer(serializers.ModelSerializer):
 
 class SituationSerializer(serializers.ModelSerializer):
     descriptions = LanguageStringSerializer(many=True, read_only=True)
-    language_code = serializers.CharField(source="languages.code", read_only=True)
+    language_code = serializers.SerializerMethodField()
 
     class Meta:
         model = Situation
         fields = ("id", "last_updated", "image_url", "language_code", "descriptions")
+
+    def get_language_code(self, obj):
+        return self.context.get("language_code")
