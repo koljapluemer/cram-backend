@@ -10,11 +10,20 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+_ENV_PATH = BASE_DIR / ".env"
+if _ENV_PATH.exists():
+    for _line in _ENV_PATH.read_text().splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _value = _line.split("=", 1)
+        os.environ.setdefault(_key.strip(), _value.strip())
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -23,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-*_e*k!%5iamk&at^)_jj*cuc7hi+l%rmoc2*p1fmahfx#z8(r#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in {"1", "true", "yes", "on"}
 
 ALLOWED_HOSTS = []
 
@@ -38,11 +47,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'main.apps.MainConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -122,3 +133,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+_cors_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in _cors_origins_raw.split(",")
+    if origin.strip()
+]
