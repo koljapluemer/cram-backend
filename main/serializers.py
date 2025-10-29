@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Language, LanguageString, Situation
+from .models import Language, Situation
 
 
 class LanguageSerializer(serializers.ModelSerializer):
@@ -9,21 +9,12 @@ class LanguageSerializer(serializers.ModelSerializer):
         fields = ("id", "code", "name")
 
 
-class LanguageStringSerializer(serializers.ModelSerializer):
-    language = serializers.SlugRelatedField(slug_field="code", read_only=True)
-
-    class Meta:
-        model = LanguageString
-        fields = ("id", "language", "content")
-
-
 class SituationSerializer(serializers.ModelSerializer):
-    descriptions = LanguageStringSerializer(many=True, read_only=True)
     language_code = serializers.SerializerMethodField()
 
     class Meta:
         model = Situation
-        fields = ("id", "last_updated", "image_url", "language_code", "descriptions")
+        fields = ("id", "last_updated", "image_url", "language_code", "description")
 
     def get_language_code(self, obj):
         return self.context.get("language_code")

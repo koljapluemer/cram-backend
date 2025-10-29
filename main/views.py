@@ -8,7 +8,6 @@ from .models import (
     Context,
     ContextType,
     Language,
-    LanguageString,
     Prompt,
     Situation,
     Utterance,
@@ -27,13 +26,7 @@ class SituationsByLanguageView(generics.ListAPIView):
     def get_queryset(self):
         language_code = self.kwargs["language_code"]
         return (
-            Situation.objects.filter(descriptions__language__code=language_code)
-            .prefetch_related(
-                Prefetch(
-                    "descriptions",
-                    queryset=LanguageString.objects.filter(language__code=language_code),
-                )
-            )
+            Situation.objects.filter(target_languages__code=language_code)
             .distinct()
             .order_by("id")
         )
@@ -65,21 +58,9 @@ class SituationDetailView(APIView):
             .distinct()
             .prefetch_related(
                 Prefetch(
-                    "descriptions",
-                    queryset=LanguageString.objects.filter(language__code=native_lang),
-                ),
-                Prefetch(
                     "utterances_of_communication",
                     queryset=Utterance.objects.filter(language__code=target_lang).prefetch_related(
-                        Prefetch(
-                            "contexts",
-                            queryset=Context.objects.prefetch_related(
-                                Prefetch(
-                                    "descriptions",
-                                    queryset=LanguageString.objects.filter(language__code=native_lang),
-                                )
-                            ),
-                        )
+                        "contexts",
                     ),
                 ),
             ),
@@ -89,17 +70,8 @@ class SituationDetailView(APIView):
             situation = (
                 Situation.objects.prefetch_related(
                     Prefetch(
-                        "descriptions",
-                        queryset=LanguageString.objects.filter(language__code=native_lang),
-                    ),
-                    Prefetch(
                         "prompts",
-                        queryset=Prompt.objects.prefetch_related(
-                            Prefetch(
-                                "descriptions",
-                                queryset=LanguageString.objects.filter(language__code=native_lang),
-                            )
-                        ),
+                        queryset=Prompt.objects.all(),
                     ),
                     communications_prefetch,
                 ).get(pk=situation_id)
@@ -110,7 +82,7 @@ class SituationDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not situation.has_utterances_for_language(target_lang):
+        if not situation.target_languages.filter(code=target_lang).exists():
             return Response(
                 {
                     "detail": f"Situation {situation_id} has no communications with utterances in language '{target_lang}'."
@@ -119,11 +91,10 @@ class SituationDetailView(APIView):
             )
 
         situation_payload = self._serialize_situation(situation, native_lang)
-        prompts_payload = self._serialize_prompts(situation.prompts.all(), native_lang)
+        prompts_payload = self._serialize_prompts(situation.prompts.all())
         communications_payload = self._serialize_communications(
             situation.communications_of_situation.all(),
             target_lang,
-            native_lang,
         )
 
         return Response(
@@ -135,49 +106,31 @@ class SituationDetailView(APIView):
         )
 
     def _serialize_situation(self, situation: Situation, native_lang: str):
-        descriptions = [
-            {
-                "id": ls.id,
-                "content": ls.content,
-                "language": ls.language.code,
-            }
-            for ls in situation.descriptions.all()
-            if ls.language.code == native_lang
-        ]
-
         return {
             "id": situation.id,
             "last_updated": situation.last_updated,
             "image_url": situation.image_url,
             "language": native_lang,
-            "descriptions": descriptions,
+            "description": situation.description,
         }
 
-    def _serialize_prompts(self, prompts, native_lang: str):
+    def _serialize_prompts(self, prompts):
         result = []
         for prompt in prompts:
             result.append(
                 {
                     "id": prompt.id,
                     "last_updated": prompt.last_updated,
-                    "descriptions": [
-                        {
-                            "id": ls.id,
-                            "content": ls.content,
-                            "language": ls.language.code,
-                        }
-                        for ls in prompt.descriptions.all()
-                        if ls.language.code == native_lang
-                    ],
+                    "description": prompt.description,
                 }
             )
         return result
 
-    def _serialize_communications(self, communications, target_lang: str, native_lang: str):
+    def _serialize_communications(self, communications, target_lang: str):
         data = []
         for communication in communications:
             utterances = [
-                self._serialize_utterance(utterance, native_lang)
+                self._serialize_utterance(utterance)
                 for utterance in communication.utterances_of_communication.all()
                 if utterance.language.code == target_lang
             ]
@@ -191,39 +144,23 @@ class SituationDetailView(APIView):
                     "last_updated": communication.last_updated,
                     "shouldBeExpressed": communication.shouldBeExpressed,
                     "shouldBeUnderstood": communication.shouldBeUnderstood,
-                    "descriptions": [
-                        {
-                            "id": ls.id,
-                            "content": ls.content,
-                            "language": ls.language.code,
-                        }
-                        for ls in communication.descriptions.all()
-                        if ls.language.code == native_lang
-                    ],
+                    "description": communication.description,
                     "utterances": utterances,
                 }
             )
 
         return data
 
-    def _serialize_utterance(self, utterance: Utterance, native_lang: str):
+    def _serialize_utterance(self, utterance: Utterance):
         contexts_data = []
         for context in utterance.contexts.all():
-            context_type_payload = self._resolve_context_type(context, native_lang)
+            context_type_payload = self._resolve_context_type(context)
             contexts_data.append(
                 {
                     "id": context.id,
                     "context_type": context.context_type,
                     "context_type_details": context_type_payload,
-                    "descriptions": [
-                        {
-                            "id": ls.id,
-                            "content": ls.content,
-                            "language": ls.language.code,
-                        }
-                        for ls in context.descriptions.all()
-                        if ls.language.code == native_lang
-                    ],
+                    "description": context.description,
                 }
             )
 
@@ -236,30 +173,13 @@ class SituationDetailView(APIView):
             "contexts": contexts_data,
         }
 
-    def _resolve_context_type(self, context: Context, native_lang: str):
-        context_type = (
-            ContextType.objects.prefetch_related(
-                Prefetch(
-                    "descriptions",
-                    queryset=LanguageString.objects.filter(language__code=native_lang),
-                )
-            )
-            .filter(name=context.context_type)
-            .first()
-        )
+    def _resolve_context_type(self, context: Context):
+        context_type = ContextType.objects.filter(name=context.context_type).first()
         if not context_type:
             return None
 
         return {
             "id": context_type.id,
             "name": context_type.name,
-            "descriptions": [
-                {
-                    "id": ls.id,
-                    "content": ls.content,
-                    "language": ls.language.code,
-                }
-                for ls in context_type.descriptions.all()
-                if ls.language.code == native_lang
-            ],
+            "description": context_type.description,
         }

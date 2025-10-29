@@ -44,7 +44,7 @@ No authentication is required for these endpoints in the current MVP.
 
 #### Response
 
-Each situation includes only the `LanguageString` descriptions stored in the requested language.
+Each situation includes the shared `description` text for the scenario.
 
 ```json
 [
@@ -53,13 +53,7 @@ Each situation includes only the `LanguageString` descriptions stored in the req
     "last_updated": "2025-10-28T17:35:54.971538Z",
     "image_url": "https://cdn.example/situation-12.jpg",
     "language_code": "eng",
-    "descriptions": [
-      {
-        "id": 88,
-        "language": "eng",
-        "content": "Meeting someone for the first time."
-      }
-    ]
+    "description": "Meeting someone for the first time."
   }
 ]
 ```
@@ -86,25 +80,13 @@ The payload aggregates all content relevant to the situation for the provided la
     "last_updated": "2025-10-28T17:35:54.971538Z",
     "image_url": "https://cdn.example/situation-12.jpg",
     "language": "eng",
-    "descriptions": [
-      {
-        "id": 88,
-        "language": "eng",
-        "content": "Meeting someone for the first time."
-      }
-    ]
+    "description": "Meeting someone for the first time."
   },
   "prompts": [
     {
       "id": 7,
       "last_updated": "2025-10-28T17:35:54.971538Z",
-      "descriptions": [
-        {
-          "id": 142,
-          "language": "eng",
-          "content": "Greet a new acquaintance politely."
-        }
-      ]
+      "description": "Greet a new acquaintance politely."
     }
   ],
   "communications": [
@@ -113,13 +95,7 @@ The payload aggregates all content relevant to the situation for the provided la
       "last_updated": "2025-10-28T17:35:54.971538Z",
       "shouldBeExpressed": true,
       "shouldBeUnderstood": false,
-      "descriptions": [
-        {
-          "id": 191,
-          "language": "eng",
-          "content": "Small talk opener."
-        }
-      ],
+      "description": "Small talk opener.",
       "utterances": [
         {
           "id": 111,
@@ -134,21 +110,9 @@ The payload aggregates all content relevant to the situation for the provided la
               "context_type_details": {
                 "id": 4,
                 "name": "politeness",
-                "descriptions": [
-                  {
-                    "id": 222,
-                    "language": "eng",
-                    "content": "Used in polite contexts."
-                  }
-                ]
+                "description": "Used in polite contexts."
               },
-              "descriptions": [
-                {
-                  "id": 225,
-                  "language": "eng",
-                  "content": "Suitable for informal greetings."
-                }
-              ]
+              "description": "Suitable for informal greetings."
             }
           ]
         }
@@ -160,11 +124,11 @@ The payload aggregates all content relevant to the situation for the provided la
 
 Rules applied:
 
-- `situation.descriptions`, `prompt.descriptions`, `communication.descriptions`, and `context.descriptions` are filtered to the `native_lang`.
-- `situation.language` in the response echoes the `native_lang` query parameter to indicate which set of descriptions was included.
+- `situation.language` in the response echoes the `native_lang` query parameter for backward compatibility.
+- Descriptions are no longer language-specific; the same text is returned regardless of the requested `native_lang`.
 - `communications` are included only if they reference at least one `Utterance` in `target_lang`.
 - Each `communication.utterances` array contains only the `target_lang` utterances.
-- `context_type_details` is populated when a `ContextType` exists with `name` matching the context’s `context_type`. Its descriptions are likewise filtered to `native_lang`. When no match exists, the field is `null`.
+- `context_type_details` is populated when a `ContextType` exists with `name` matching the context’s `context_type`. Its `description` mirrors the stored context-type text. When no match exists, the field is `null`.
 
 #### Error responses
 

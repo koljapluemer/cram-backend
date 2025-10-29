@@ -24,6 +24,8 @@ poetry run python manage.py runserver
 
 Full endpoint documentation lives in `API.md`. The commands below hit the core endpoints once the server is running at `http://localhost:8000`.
 
+All situation, prompt, communication, and context payloads now expose a single `description` string rather than language-specific description collections.
+
 List all languages:
 
 ```bash
@@ -33,11 +35,11 @@ curl http://localhost:8000/api/languages/
 List situations for a specific language (example: English `eng`):
 
 ```bash
-curl http://localhost:8000/api/languages/eng/situations/
+curl http://localhost:8000/api/languages/deu/situations/
 ```
 
-Fetch the full situation bundle for situation `12`, targeting Spanish (`spa`) with English (`eng`) as the native language:
+Fetch the full situation bundle:
 
 ```bash
-curl "http://localhost:8000/api/situations/12/?target_lang=spa&native_lang=eng"
+curl "http://localhost:8000/api/situations/3/?target_lang=deu&native_lang=eng"
 ```
