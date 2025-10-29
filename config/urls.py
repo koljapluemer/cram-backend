@@ -17,6 +17,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from main.views import LanguageListView, SituationDetailView, SituationsByLanguageView
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
+    path("api/languages/", LanguageListView.as_view(), name="language-list"),
+    path(
+        "api/languages/<str:language_code>/situations/",
+        SituationsByLanguageView.as_view(),
+        name="situations-by-language",
+    ),
+    path(
+        "api/situations/<int:situation_id>/",
+        SituationDetailView.as_view(),
+        name="situation-detail",
+    ),
 ]

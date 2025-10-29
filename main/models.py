@@ -19,6 +19,7 @@ class LanguageString(models.Model):
 class Situation(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     descriptions = models.ManyToManyField(LanguageString, related_name="situations", blank=True)
+    languages = models.ForeignKey(Language, on_delete=models.CASCADE, related_name="situations_for_language")
     image_url = models.URLField(blank=True)
 
     def __str__(self) -> str:
